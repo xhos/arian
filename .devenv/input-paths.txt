@@ -1,0 +1,7 @@
+/home/xhos/projects/arian/.devenv/flake.json
+/home/xhos/projects/arian/.devenv.flake.nix
+/home/xhos/projects/arian/.env
+/home/xhos/projects/arian/devenv.local.nix
+/home/xhos/projects/arian/devenv.lock
+/home/xhos/projects/arian/devenv.nix
+/home/xhos/projects/arian/devenv.yaml
