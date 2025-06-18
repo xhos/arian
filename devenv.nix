@@ -6,4 +6,6 @@
       bun.enable = true;
     };
   };
+
+  dotenv.enable = true;
 }
