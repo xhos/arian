@@ -1,13 +1,13 @@
+// keep naming identical to the api!
+
 export interface TrendPoint {
   date: string;
   income: number;
   expense: number;
 }
-
 export interface BalanceResponse {
   balance: number;
 }
-
 export interface DebtResponse {
   debt: number;
 }
@@ -41,12 +41,20 @@ export interface Transaction {
   balance_after: number;
 }
 
-export interface TransactionWithAccountName extends Transaction {
-  accountName: string;
+export type TransactionWithAccountName = Transaction & { accountName: string };
+
+export interface Cursor {
+  id: number;
+  date: string;
 }
 
-export interface NetWorthDataPoint {
-  date: string;
-  netWorth?: number;
-  netWorthLine?: number;
+export interface ListTransactionsResponse {
+  transactions: Transaction[];
+  next_cursor: Cursor | null;
+}
+
+export interface ListTransactionsOptions {
+  limit?: number;
+  cursor_id?: number;
+  cursor_date?: string;
 }
