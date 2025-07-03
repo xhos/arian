@@ -22,11 +22,10 @@ jobs:
 
       - name: generate api types
         run: |
-          bunx swagger-typescript-api \
+          bunx swagger-typescript-api generate \
             -p https://raw.githubusercontent.com/xhos/ariand/main/docs/swagger.json \
             -o src/lib \
-            -n api.gen.ts \
-            --http-client fetch
+            -n api.gen.ts
 
       - name: commit generated types
         uses: stefanzweifel/git-auto-commit-action@v5
