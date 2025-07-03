@@ -6,23 +6,14 @@ import { useInView } from 'react-intersection-observer'
 import useSWRInfinite from 'swr/infinite'
 
 import { getTransactions } from '@/lib/api'
-import type {
-  DomainAccount as Account,
-  HandlersCursor as Cursor,
-  HandlersListTransactionsResponse as ListTransactionsResponse,
-} from '@/lib/api.gen'
+import type { Api, DomainAccount as Account, HandlersCursor as Cursor, HandlersListTransactionsResponse as ListTransactionsResponse } from '@/lib/api.gen'
 import { TransactionWithAccountName } from '@/lib/types'
 import { TransactionCard } from './transaction-card'
 import { TransactionSkeleton } from './transaction-skeleton'
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 
 const PAGE_SIZE = 25
 
@@ -30,34 +21,36 @@ type Page = ListTransactionsResponse & {
   transactions: TransactionWithAccountName[]
 }
 
-const makeKey = (index: number, prev: Page | null) =>
-  index === 0
-    ? { limit: PAGE_SIZE }
-    : prev?.next_cursor
-      ? {
-        limit: PAGE_SIZE,
-        cursor_id: prev.next_cursor.id,
-        cursor_date: prev.next_cursor.date,
-      }
-      : null
+// derive the filter type directly from the generated API client
+type TransactionFilters = NonNullable<Parameters<Api<unknown>['api']['transactionsList']>[0]>
 
-type FetchParams = { limit: number; cursor_id?: number; cursor_date?: string }
 
 const makeFetcher = (accounts: Account[]) => async (
-  params: FetchParams
+  params: Partial<TransactionFilters>
 ): Promise<Page> => {
-  const res = await getTransactions(params)
-  const map = new Map(accounts.map((a) => [a.id, a.alias || a.name]))
+  const cleanParams = Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== ''));
+  const res = await getTransactions(cleanParams)
+  const map = new Map(accounts.map((a) => [a.id!, a.alias || a.name]))
   return {
     ...res,
     transactions: (res.transactions ?? []).map((tx) => ({
       ...tx,
-      accountName: map.get(tx.account_id) || 'unknown',
+      accountName: map.get(tx.account_id!) || "Unknown Account",
     })),
   }
 }
 
-const FiltersSidebar = ({ accounts, selected }: { accounts: Account[], selected: Set<number> }) => {
+const FiltersSidebar = ({
+  accounts,
+  selected,
+  filters,
+  onFilterChange
+}: {
+  accounts: Account[],
+  selected: Set<number>,
+  filters: Partial<TransactionFilters>,
+  onFilterChange: (newFilters: Partial<TransactionFilters>) => void
+}) => {
   return (
     <>
       <Card>
@@ -66,20 +59,66 @@ const FiltersSidebar = ({ accounts, selected }: { accounts: Account[], selected:
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <Label htmlFor="account-filter">Account</Label>
-            <Select onValueChange={() => { }}>
-              <SelectTrigger id="account-filter">
-                <SelectValue placeholder="All Accounts" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Accounts</SelectItem>
-                {accounts.map((a) => (
-                  <SelectItem key={a.id} value={String(a.id)}>
-                    {a.alias || a.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Label htmlFor="account-filter">Account</Label>
+              <Select
+                value={filters.account_ids ?? 'all'}
+                onValueChange={(value) => {
+                  onFilterChange({ account_ids: value === 'all' ? undefined : value });
+                }}
+              >
+                <SelectTrigger id="account-filter">
+                  <SelectValue placeholder="All Accounts" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Accounts</SelectItem>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={String(a.id!)}>
+                      {a.alias || a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="direction-filter">Direction</Label>
+              <Select
+                value={filters.direction ?? 'all'}
+                onValueChange={(value) => {
+                  onFilterChange({ direction: value === 'all' ? undefined : value });
+                }}
+              >
+                <SelectTrigger id="direction-filter">
+                  <SelectValue placeholder="In & Out" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">In & Out</SelectItem>
+                  <SelectItem value="in">In</SelectItem>
+                  <SelectItem value="out">Out</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <Label htmlFor="start-date">Start Date</Label>
+                <Input
+                  id="start-date"
+                  type="date"
+                  value={filters.start_date ?? ''}
+                  onChange={(e) => onFilterChange({ start_date: e.target.value || undefined })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="end-date">End Date</Label>
+                <Input
+                  id="end-date"
+                  type="date"
+                  value={filters.end_date ?? ''}
+                  onChange={(e) => onFilterChange({ end_date: e.target.value || undefined })}
+                />
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -100,7 +139,6 @@ const FiltersSidebar = ({ accounts, selected }: { accounts: Account[], selected:
   );
 };
 
-
 export function TransactionsView({
   initialTransactions,
   initialNextCursor,
@@ -110,8 +148,28 @@ export function TransactionsView({
   initialNextCursor: Cursor | null
   accounts: Account[]
 }) {
+  const [filters, setFilters] = React.useState<Partial<TransactionFilters>>({});
+
   const { data = [], setSize, isValidating } = useSWRInfinite<Page>(
-    makeKey,
+    (index, prev) => {
+      const params: Partial<TransactionFilters> & { limit: number } = { limit: PAGE_SIZE, ...filters };
+
+      Object.keys(params).forEach(key => {
+        const k = key as keyof typeof params;
+        if (params[k] == null || params[k] === '') {
+          delete params[k];
+        }
+      });
+
+      if (index === 0) return params;
+      if (!prev || !prev.next_cursor) return null;
+
+      return {
+        ...params,
+        cursor_id: prev.next_cursor.id,
+        cursor_date: prev.next_cursor.date,
+      };
+    },
     makeFetcher(accounts),
     {
       fallbackData: [
@@ -127,9 +185,14 @@ export function TransactionsView({
   const txs = React.useMemo(() => data.flatMap((p) => p.transactions), [data])
   const next = data.at(-1)?.next_cursor ?? null
 
-  // ctrl-click toggles one; shift-click selects a range
   const [selected, setSelected] = React.useState<Set<number>>(new Set())
   const [lastIdx, setLastIdx] = React.useState<number | null>(null)
+
+  const handleFilterChange = React.useCallback((newFilters: Partial<TransactionFilters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+    setSelected(new Set());
+    setLastIdx(null);
+  }, []);
 
   const handleSelect = React.useCallback(
     (id: number) => {
@@ -171,7 +234,6 @@ export function TransactionsView({
     [txs, lastIdx, handleSelect]
   )
 
-  // infinite‐load when sentinel enters view 100%
   const { ref: sentinelRef, inView } = useInView({ threshold: 1 })
   React.useEffect(() => {
     if (inView && next && !isValidating) {
@@ -199,10 +261,20 @@ export function TransactionsView({
           <h1 className="text-6xl font-cormorant font-bold text-silver-metallic">transactions</h1>
 
           <div className="space-y-4 lg:hidden">
-            <FiltersSidebar accounts={accounts} selected={selected} />
+            <FiltersSidebar
+              accounts={accounts}
+              selected={selected}
+              filters={filters}
+              onFilterChange={handleFilterChange}
+            />
           </div>
 
-          {Object.entries(grouped).map(([day, list]) => (
+          {txs.length === 0 && !isValidating ? (
+            <div className="text-center text-muted-foreground pt-8">
+              <p className="text-lg">No transactions found.</p>
+              <p>Try adjusting your filters.</p>
+            </div>
+          ) : Object.entries(grouped).map(([day, list]) => (
             <section key={day} className="space-y-3">
               <h2 className="text-lg font-medium text-muted-foreground">
                 {day}
@@ -239,7 +311,12 @@ export function TransactionsView({
         </div>
 
         <aside className="hidden lg:block space-y-4 sticky top-33 h-fit">
-          <FiltersSidebar accounts={accounts} selected={selected} />
+          <FiltersSidebar
+            accounts={accounts}
+            selected={selected}
+            filters={filters}
+            onFilterChange={handleFilterChange}
+          />
         </aside>
       </div>
     </div>
