@@ -85,9 +85,9 @@ export interface HandlersSetAnchorRequest {
 export type HandlersUpdateTransactionRequest = Record<string, any>;
 
 export type QueryParamsType = Record<string | number, any>;
-export type ResponseFormat = keyof Omit<Body, 'body' | 'bodyUsed'>;
+export type ResponseFormat = keyof Omit<Body, "body" | "bodyUsed">;
 
-export interface FullRequestParams extends Omit<RequestInit, 'body'> {
+export interface FullRequestParams extends Omit<RequestInit, "body"> {
   /** set parameter to `true` for call `securityWorker` for this request */
   secure?: boolean;
   /** request path */
@@ -106,18 +106,22 @@ export interface FullRequestParams extends Omit<RequestInit, 'body'> {
   cancelToken?: CancelToken;
 }
 
-export type RequestParams = Omit<FullRequestParams, 'body' | 'method' | 'query' | 'path'>;
+export type RequestParams = Omit<
+  FullRequestParams,
+  "body" | "method" | "query" | "path"
+>;
 
 export interface ApiConfig<SecurityDataType = unknown> {
   baseUrl?: string;
-  baseApiParams?: Omit<RequestParams, 'baseUrl' | 'cancelToken' | 'signal'>;
+  baseApiParams?: Omit<RequestParams, "baseUrl" | "cancelToken" | "signal">;
   securityWorker?: (
-    securityData: SecurityDataType | null
+    securityData: SecurityDataType | null,
   ) => Promise<RequestParams | void> | RequestParams | void;
   customFetch?: typeof fetch;
 }
 
-export interface HttpResponse<D extends unknown, E extends unknown = unknown> extends Response {
+export interface HttpResponse<D extends unknown, E extends unknown = unknown>
+  extends Response {
   data: D;
   error: E;
 }
@@ -125,25 +129,26 @@ export interface HttpResponse<D extends unknown, E extends unknown = unknown> ex
 type CancelToken = Symbol | string | number;
 
 export enum ContentType {
-  Json = 'application/json',
-  JsonApi = 'application/vnd.api+json',
-  FormData = 'multipart/form-data',
-  UrlEncoded = 'application/x-www-form-urlencoded',
-  Text = 'text/plain',
+  Json = "application/json",
+  JsonApi = "application/vnd.api+json",
+  FormData = "multipart/form-data",
+  UrlEncoded = "application/x-www-form-urlencoded",
+  Text = "text/plain",
 }
 
 export class HttpClient<SecurityDataType = unknown> {
-  public baseUrl: string = '/';
+  public baseUrl: string = "/";
   private securityData: SecurityDataType | null = null;
-  private securityWorker?: ApiConfig<SecurityDataType>['securityWorker'];
+  private securityWorker?: ApiConfig<SecurityDataType>["securityWorker"];
   private abortControllers = new Map<CancelToken, AbortController>();
-  private customFetch = (...fetchParams: Parameters<typeof fetch>) => fetch(...fetchParams);
+  private customFetch = (...fetchParams: Parameters<typeof fetch>) =>
+    fetch(...fetchParams);
 
   private baseApiParams: RequestParams = {
-    credentials: 'same-origin',
+    credentials: "same-origin",
     headers: {},
-    redirect: 'follow',
-    referrerPolicy: 'no-referrer',
+    redirect: "follow",
+    referrerPolicy: "no-referrer",
   };
 
   constructor(apiConfig: ApiConfig<SecurityDataType> = {}) {
@@ -156,7 +161,7 @@ export class HttpClient<SecurityDataType = unknown> {
 
   protected encodeQueryParam(key: string, value: any) {
     const encodedKey = encodeURIComponent(key);
-    return `${encodedKey}=${encodeURIComponent(typeof value === 'number' ? value : `${value}`)}`;
+    return `${encodedKey}=${encodeURIComponent(typeof value === "number" ? value : `${value}`)}`;
   }
 
   protected addQueryParam(query: QueryParamsType, key: string) {
@@ -165,37 +170,41 @@ export class HttpClient<SecurityDataType = unknown> {
 
   protected addArrayQueryParam(query: QueryParamsType, key: string) {
     const value = query[key];
-    return value.map((v: any) => this.encodeQueryParam(key, v)).join('&');
+    return value.map((v: any) => this.encodeQueryParam(key, v)).join("&");
   }
 
   protected toQueryString(rawQuery?: QueryParamsType): string {
     const query = rawQuery || {};
-    const keys = Object.keys(query).filter((key) => 'undefined' !== typeof query[key]);
+    const keys = Object.keys(query).filter(
+      (key) => "undefined" !== typeof query[key],
+    );
     return keys
       .map((key) =>
         Array.isArray(query[key])
           ? this.addArrayQueryParam(query, key)
-          : this.addQueryParam(query, key)
+          : this.addQueryParam(query, key),
       )
-      .join('&');
+      .join("&");
   }
 
   protected addQueryParams(rawQuery?: QueryParamsType): string {
     const queryString = this.toQueryString(rawQuery);
-    return queryString ? `?${queryString}` : '';
+    return queryString ? `?${queryString}` : "";
   }
 
   private contentFormatters: Record<ContentType, (input: any) => any> = {
     [ContentType.Json]: (input: any) =>
-      input !== null && (typeof input === 'object' || typeof input === 'string')
+      input !== null && (typeof input === "object" || typeof input === "string")
         ? JSON.stringify(input)
         : input,
     [ContentType.JsonApi]: (input: any) =>
-      input !== null && (typeof input === 'object' || typeof input === 'string')
+      input !== null && (typeof input === "object" || typeof input === "string")
         ? JSON.stringify(input)
         : input,
     [ContentType.Text]: (input: any) =>
-      input !== null && typeof input !== 'string' ? JSON.stringify(input) : input,
+      input !== null && typeof input !== "string"
+        ? JSON.stringify(input)
+        : input,
     [ContentType.FormData]: (input: any) =>
       Object.keys(input || {}).reduce((formData, key) => {
         const property = input[key];
@@ -203,16 +212,19 @@ export class HttpClient<SecurityDataType = unknown> {
           key,
           property instanceof Blob
             ? property
-            : typeof property === 'object' && property !== null
-            ? JSON.stringify(property)
-            : `${property}`
+            : typeof property === "object" && property !== null
+              ? JSON.stringify(property)
+              : `${property}`,
         );
         return formData;
       }, new FormData()),
     [ContentType.UrlEncoded]: (input: any) => this.toQueryString(input),
   };
 
-  protected mergeRequestParams(params1: RequestParams, params2?: RequestParams): RequestParams {
+  protected mergeRequestParams(
+    params1: RequestParams,
+    params2?: RequestParams,
+  ): RequestParams {
     return {
       ...this.baseApiParams,
       ...params1,
@@ -225,7 +237,9 @@ export class HttpClient<SecurityDataType = unknown> {
     };
   }
 
-  protected createAbortSignal = (cancelToken: CancelToken): AbortSignal | undefined => {
+  protected createAbortSignal = (
+    cancelToken: CancelToken,
+  ): AbortSignal | undefined => {
     if (this.abortControllers.has(cancelToken)) {
       const abortController = this.abortControllers.get(cancelToken);
       if (abortController) {
@@ -260,7 +274,7 @@ export class HttpClient<SecurityDataType = unknown> {
     ...params
   }: FullRequestParams): Promise<HttpResponse<T, E>> => {
     const secureParams =
-      ((typeof secure === 'boolean' ? secure : this.baseApiParams.secure) &&
+      ((typeof secure === "boolean" ? secure : this.baseApiParams.secure) &&
         this.securityWorker &&
         (await this.securityWorker(this.securityData))) ||
       {};
@@ -270,16 +284,24 @@ export class HttpClient<SecurityDataType = unknown> {
     const responseFormat = format || requestParams.format;
 
     return this.customFetch(
-      `${baseUrl || this.baseUrl || ''}${path}${queryString ? `?${queryString}` : ''}`,
+      `${baseUrl || this.baseUrl || ""}${path}${queryString ? `?${queryString}` : ""}`,
       {
         ...requestParams,
         headers: {
           ...(requestParams.headers || {}),
-          ...(type && type !== ContentType.FormData ? { 'Content-Type': type } : {}),
+          ...(type && type !== ContentType.FormData
+            ? { "Content-Type": type }
+            : {}),
         },
-        signal: (cancelToken ? this.createAbortSignal(cancelToken) : requestParams.signal) || null,
-        body: typeof body === 'undefined' || body === null ? null : payloadFormatter(body),
-      }
+        signal:
+          (cancelToken
+            ? this.createAbortSignal(cancelToken)
+            : requestParams.signal) || null,
+        body:
+          typeof body === "undefined" || body === null
+            ? null
+            : payloadFormatter(body),
+      },
     ).then(async (response) => {
       const r = response.clone() as HttpResponse<T, E>;
       r.data = null as unknown as T;
@@ -319,7 +341,9 @@ export class HttpClient<SecurityDataType = unknown> {
  *
  * backend for arian
  */
-export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDataType> {
+export class Api<
+  SecurityDataType extends unknown,
+> extends HttpClient<SecurityDataType> {
   api = {
     /**
      * @description Returns a list of all accounts.
@@ -333,9 +357,9 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     accountsList: (params: RequestParams = {}) =>
       this.request<DomainAccount[], HandlersHTTPError>({
         path: `/api/accounts`,
-        method: 'GET',
+        method: "GET",
         secure: true,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -351,9 +375,9 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     accountsDetail: (id: number, params: RequestParams = {}) =>
       this.request<DomainAccount, HandlersHTTPError>({
         path: `/api/accounts/${id}`,
-        method: 'GET',
+        method: "GET",
         secure: true,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -366,10 +390,14 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
      * @request POST:/api/accounts/{id}/anchor
      * @secure
      */
-    accountsAnchorCreate: (payload: HandlersSetAnchorRequest, params: RequestParams = {}) =>
+    accountsAnchorCreate: (
+      id: number,
+      payload: HandlersSetAnchorRequest,
+      params: RequestParams = {},
+    ) =>
       this.request<void, HandlersHTTPError>({
         path: `/api/accounts/${id}/anchor`,
-        method: 'POST',
+        method: "POST",
         body: payload,
         secure: true,
         type: ContentType.Json,
@@ -388,9 +416,9 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     accountsBalanceList: (id: number, params: RequestParams = {}) =>
       this.request<HandlersBalanceResponse, HandlersHTTPError>({
         path: `/api/accounts/${id}/balance`,
-        method: 'GET',
+        method: "GET",
         secure: true,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -406,9 +434,9 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     dashboardBalanceList: (params: RequestParams = {}) =>
       this.request<HandlersBalanceResponse, HandlersHTTPError>({
         path: `/api/dashboard/balance`,
-        method: 'GET',
+        method: "GET",
         secure: true,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -424,9 +452,9 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     dashboardDebtList: (params: RequestParams = {}) =>
       this.request<HandlersDebtResponse, HandlersHTTPError>({
         path: `/api/dashboard/debt`,
-        method: 'GET',
+        method: "GET",
         secure: true,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -446,14 +474,14 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** End date for trend data (YYYY-MM-DD) */
         end?: string;
       },
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<DomainTrendPoint[], HandlersHTTPError>({
         path: `/api/dashboard/trends`,
-        method: 'GET',
+        method: "GET",
         query: query,
         secure: true,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -500,14 +528,14 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
         /** Filter by end time of day (HH:MM:SS) */
         time_end?: string;
       },
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<HandlersListTransactionsResponse, HandlersHTTPError>({
         path: `/api/transactions`,
-        method: 'GET',
+        method: "GET",
         query: query,
         secure: true,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -520,14 +548,17 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
      * @request POST:/api/transactions
      * @secure
      */
-    transactionsCreate: (transaction: DomainTransaction, params: RequestParams = {}) =>
+    transactionsCreate: (
+      transaction: DomainTransaction,
+      params: RequestParams = {},
+    ) =>
       this.request<HandlersCreateTransactionResponse, HandlersHTTPError>({
         path: `/api/transactions`,
-        method: 'POST',
+        method: "POST",
         body: transaction,
         secure: true,
         type: ContentType.Json,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -543,9 +574,9 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     transactionsDetail: (id: number, params: RequestParams = {}) =>
       this.request<DomainTransaction, HandlersHTTPError>({
         path: `/api/transactions/${id}`,
-        method: 'GET',
+        method: "GET",
         secure: true,
-        format: 'json',
+        format: "json",
         ...params,
       }),
 
@@ -561,7 +592,7 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     transactionsDelete: (id: number, params: RequestParams = {}) =>
       this.request<void, HandlersHTTPError>({
         path: `/api/transactions/${id}`,
-        method: 'DELETE',
+        method: "DELETE",
         secure: true,
         ...params,
       }),
@@ -578,11 +609,11 @@ export class Api<SecurityDataType extends unknown> extends HttpClient<SecurityDa
     transactionsPartialUpdate: (
       id: number,
       fields: HandlersUpdateTransactionRequest,
-      params: RequestParams = {}
+      params: RequestParams = {},
     ) =>
       this.request<void, HandlersHTTPError>({
         path: `/api/transactions/${id}`,
-        method: 'PATCH',
+        method: "PATCH",
         body: fields,
         secure: true,
         type: ContentType.Json,
