@@ -57,6 +57,50 @@ const makeFetcher = (accounts: Account[]) => async (
   }
 }
 
+const FiltersSidebar = ({ accounts, selected }: { accounts: Account[], selected: Set<number> }) => {
+  return (
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <Label htmlFor="account-filter">Account</Label>
+            <Select onValueChange={() => { }}>
+              <SelectTrigger id="account-filter">
+                <SelectValue placeholder="All Accounts" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Accounts</SelectItem>
+                {accounts.map((a) => (
+                  <SelectItem key={a.id} value={String(a.id)}>
+                    {a.alias || a.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            {selected.size
+              ? `${selected.size} transaction(s) selected.`
+              : 'select a transaction to see details'}
+          </p>
+        </CardContent>
+      </Card>
+    </>
+  );
+};
+
+
 export function TransactionsView({
   initialTransactions,
   initialNextCursor,
@@ -150,12 +194,13 @@ export function TransactionsView({
 
   return (
     <div className="flex-1 overflow-y-auto min-h-0 p-6">
-
-
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 items-start">
-        {/* transactions list */}
         <div className="space-y-8">
           <h1 className="text-6xl font-cormorant font-bold text-silver-metallic">transactions</h1>
+
+          <div className="space-y-4 lg:hidden">
+            <FiltersSidebar accounts={accounts} selected={selected} />
+          </div>
 
           {Object.entries(grouped).map(([day, list]) => (
             <section key={day} className="space-y-3">
@@ -193,44 +238,8 @@ export function TransactionsView({
           )}
         </div>
 
-        {/* filters & details sidebar */}
-        <aside className="space-y-4 sticky top-33 h-fit">
-          <Card>
-            <CardHeader>
-              <CardTitle>Filters</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <Label htmlFor="account-filter">Account</Label>
-                <Select onValueChange={() => { }}>
-                  <SelectTrigger id="account-filter">
-                    <SelectValue placeholder="All Accounts" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Accounts</SelectItem>
-                    {accounts.map((a) => (
-                      <SelectItem key={a.id} value={String(a.id)}>
-                        {a.alias || a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Details</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                {selected.size
-                  ? `${selected.size} transaction(s) selected.`
-                  : 'select a transaction to see details'}
-              </p>
-            </CardContent>
-          </Card>
+        <aside className="hidden lg:block space-y-4 sticky top-33 h-fit">
+          <FiltersSidebar accounts={accounts} selected={selected} />
         </aside>
       </div>
     </div>
