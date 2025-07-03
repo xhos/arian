@@ -1,8 +1,9 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { getAccounts, getTransactions } from "@/lib/api";
-import { TransactionWithAccountName } from "@/lib/types";
+import { getAccounts, getTransactions } from '@/lib/api'
+import type { DomainAccount as Account } from '@/lib/api.gen';
+import type { TransactionWithAccountName } from '@/lib/types'
 import { TransactionsView } from "./transactions-view";
 
 const PAGE_SIZE = 25;
@@ -15,14 +16,14 @@ async function getInitialData() {
     ]);
 
     const accountsMap = new Map(
-      accounts.map((acc) => [acc.id, acc.alias || acc.name])
+      accounts.map((acc: Account) => [acc.id!, acc.alias || acc.name])
     );
 
     const transactionsWithAccountName: TransactionWithAccountName[] = (
       response?.transactions ?? []
     ).map((tx) => ({
       ...tx,
-      accountName: accountsMap.get(tx.account_id) || "Unknown Account",
+      accountName: accountsMap.get(tx.account_id!) || "Unknown Account",
     }));
 
     return {

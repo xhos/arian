@@ -26,7 +26,9 @@ async function getCheckingBalance() {
     return { total: 0, count: 0 };
   }
 
-  const balancePromises = checkingAccounts.map(acc => getAccountBalance(acc.id));
+  const balancePromises = checkingAccounts
+    .filter(acc => acc.id !== undefined)
+    .map(acc => getAccountBalance(acc.id!));
   const balances = await Promise.all(balancePromises);
 
   const total = balances.reduce((sum, res) => sum + res.balance, 0);
@@ -60,7 +62,7 @@ export async function SectionCards() {
       getTrends(format(thirtyDaysAgo, "yyyy-MM-dd"), format(today, "yyyy-MM-dd")),
     ]);
 
-    const liabilities = Math.abs(debtResponse.debt);
+    const liabilities = Math.abs(debtResponse);
 
     // Format numbers for display
     checkingBalance = currencyFormatter.format(checkingData.total);
@@ -68,10 +70,10 @@ export async function SectionCards() {
     debt = currencyFormatter.format(liabilities);
 
     // Calculate Net Change for the badge
-    netChange = trendsResponse.reduce((acc, day) => acc + day.income - day.expense, 0);
+    netChange = trendsResponse.reduce((acc, day) => acc + (day.income ?? 0) - (day.expense ?? 0), 0);
 
     // Calculate Debt-to-Asset Ratio
-    const totalAssets = netWorthResponse.balance + liabilities;
+    const totalAssets = netWorthResponse + liabilities;
     debtRatio = totalAssets > 0 ? (liabilities / totalAssets) * 100 : 0;
 
   } catch (error) {

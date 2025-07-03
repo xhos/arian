@@ -6,12 +6,12 @@ import { useInView } from 'react-intersection-observer'
 import useSWRInfinite from 'swr/infinite'
 
 import { getTransactions } from '@/lib/api'
-import {
-  Account,
-  Cursor,
-  ListTransactionsResponse,
-  TransactionWithAccountName,
-} from '@/lib/types'
+import type {
+  DomainAccount as Account,
+  HandlersCursor as Cursor,
+  HandlersListTransactionsResponse as ListTransactionsResponse,
+} from '@/lib/api.gen'
+import { TransactionWithAccountName } from '@/lib/types'
 import { TransactionCard } from './transaction-card'
 import { TransactionSkeleton } from './transaction-skeleton'
 import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card'
@@ -50,7 +50,7 @@ const makeFetcher = (accounts: Account[]) => async (
   const map = new Map(accounts.map((a) => [a.id, a.alias || a.name]))
   return {
     ...res,
-    transactions: res.transactions.map((tx) => ({
+    transactions: (res.transactions ?? []).map((tx) => ({
       ...tx,
       accountName: map.get(tx.account_id) || 'unknown',
     })),
@@ -71,7 +71,10 @@ export function TransactionsView({
     makeFetcher(accounts),
     {
       fallbackData: [
-        { transactions: initialTransactions, next_cursor: initialNextCursor },
+        {
+          transactions: initialTransactions,
+          next_cursor: initialNextCursor ?? undefined,
+        },
       ],
       revalidateFirstPage: false,
     }
@@ -112,7 +115,10 @@ export function TransactionsView({
       setSelected((prev) => {
         const nxt = new Set(prev)
         for (let i = start; i <= end; i++) {
-          nxt.add(txs[i].id)
+          const tx = txs[i]
+          if (tx && typeof tx.id === 'number') {
+            nxt.add(tx.id)
+          }
         }
         return nxt
       })
@@ -132,7 +138,9 @@ export function TransactionsView({
   const grouped = React.useMemo(() => {
     return txs.reduce<Record<string, TransactionWithAccountName[]>>(
       (acc, t) => {
-        const day = format(parseISO(t.tx_date), 'PPP')
+        const day = t.tx_date
+          ? format(parseISO(t.tx_date), 'PPP')
+          : 'Uncategorized'
           ; (acc[day] ??= []).push(t)
         return acc
       },
@@ -141,11 +149,14 @@ export function TransactionsView({
   }, [txs])
 
   return (
-    <div className="flex-1 overflow-y-auto min-h-0">
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 p-6">
+    <div className="flex-1 overflow-y-auto min-h-0 p-6">
+
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-6 items-start">
         {/* transactions list */}
         <div className="space-y-8">
-          <h1 className="text-2xl font-semibold">Transactions</h1>
+          <h1 className="text-6xl font-cormorant font-bold text-silver-metallic">transactions</h1>
+
           {Object.entries(grouped).map(([day, list]) => (
             <section key={day} className="space-y-3">
               <h2 className="text-lg font-medium text-muted-foreground">
@@ -156,9 +167,9 @@ export function TransactionsView({
                   <TransactionCard
                     key={tx.id}
                     transaction={tx}
-                    isSelected={selected.has(tx.id)}
-                    onSelect={() => handleSelect(tx.id)}
-                    onRangeSelect={() => handleRangeSelect(tx.id)}
+                    isSelected={!!tx.id && selected.has(tx.id)}
+                    onSelect={() => tx.id && handleSelect(tx.id)}
+                    onRangeSelect={() => tx.id && handleRangeSelect(tx.id)}
                   />
                 ))}
               </div>
@@ -183,7 +194,7 @@ export function TransactionsView({
         </div>
 
         {/* filters & details sidebar */}
-        <aside className="space-y-6 sticky top-6 h-fit">
+        <aside className="space-y-4 sticky top-33 h-fit">
           <Card>
             <CardHeader>
               <CardTitle>Filters</CardTitle>

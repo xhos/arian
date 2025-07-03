@@ -1,42 +1,53 @@
-// tiny fetch wrapper + helpers
+import { Api } from './api.gen';
+import type {
+  DomainAccount,
+  HandlersListTransactionsResponse,
+  DomainTrendPoint,
+  HandlersBalanceResponse,
+  HandlersDebtResponse,
+} from './api.gen';
 
-import {
-  TrendPoint,
-  BalanceResponse,
-  DebtResponse,
-  Account,
-  ListTransactionsOptions,
-  ListTransactionsResponse,
-} from '@/lib/types';
+const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080';
 
-const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-const token = process.env.NEXT_PUBLIC_API_KEY;
+const api = new Api({
+  baseUrl: BASE,
 
-// one generic fetch; no-cache keeps the list live
-const api = async <T>(path: string, init?: RequestInit): Promise<T> => {
-  const res = await fetch(`${base}${path}`, {
-    cache: 'no-store', // always fresh
-    headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-    ...init,
-  });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return (await res.json()) as T;
+  securityWorker: () => ({
+    headers: {
+      Authorization: `Bearer ${process.env.NEXT_PUBLIC_API_KEY}`,
+    },
+  }),
+});
+
+export const getAccounts = async (): Promise<DomainAccount[]> => {
+  const res = await api.api.accountsList();
+  return res.data ?? [];
 };
 
-// typed endpoints – one-liners keep the file short
-export const getTrends = (s: string, e: string) =>
-  api<TrendPoint[]>(`/dashboard/trends?start=${s}&end=${e}`);
+export const getAccountBalance = async (id: number): Promise<{ balance: number }> => {
+  const { data } = await api.api.accountsDetail(id);
+  // data is DomainAccount, which has a balance property
+  return { balance: data.anchor_balance ?? 0 };
+};
 
-export const getTotalBalance = () => api<BalanceResponse>('/dashboard/balance');
-export const getTotalDebt = () => api<DebtResponse>('/dashboard/debt');
-export const getAccounts = () => api<Account[]>('/accounts');
-export const getAccountBalance = (id: number) => api<BalanceResponse>(`/accounts/${id}/balance`);
+export const getTransactions = async (
+  opts: { limit?: number; cursor_id?: number; cursor_date?: string } = {}
+): Promise<HandlersListTransactionsResponse> => {
+  const { data } = await api.api.transactionsList(opts);
+  return data ?? { transactions: [] };
+};
 
-// query-builder for cursor pagination
-export const getTransactions = (o: ListTransactionsOptions = {}) => {
-  const q = new URLSearchParams();
-  if (o.limit) q.set('limit', o.limit.toString());
-  if (o.cursor_id) q.set('cursor_id', o.cursor_id.toString());
-  if (o.cursor_date) q.set('cursor_date', o.cursor_date);
-  return api<ListTransactionsResponse>(`/transactions${q.toString() ? '?' + q : ''}`);
+export const getTotalBalance = async (): Promise<number> => {
+  const { data } = await api.api.dashboardBalanceList();
+  return (data as HandlersBalanceResponse).balance ?? 0;
+};
+
+export const getTotalDebt = async (): Promise<number> => {
+  const { data } = await api.api.dashboardDebtList();
+  return (data as HandlersDebtResponse).debt ?? 0;
+};
+
+export const getTrends = async (start: string, end: string): Promise<DomainTrendPoint[]> => {
+  const { data } = await api.api.dashboardTrendsList({ start, end });
+  return (data as DomainTrendPoint[]) ?? [];
 };

@@ -3,7 +3,7 @@
 import React from 'react'
 import { parseISO, format } from 'date-fns'
 import { cn } from '@/lib/utils'
-import { TransactionWithAccountName } from '@/lib/types'
+import type { TransactionWithAccountName } from '@/lib/types'
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Badge } from '@/components/ui/badge'
 
@@ -26,7 +26,7 @@ function _TransactionCard({
   onRangeSelect,
 }: TransactionCardProps) {
   const isIncome = transaction.tx_direction === 'in'
-  const amount = transaction.tx_amount
+  const amount = transaction.tx_amount ?? 0
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.shiftKey) {
@@ -79,13 +79,13 @@ function _TransactionCard({
         <TooltipContent side="top" align="start">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
             <span className="font-semibold">Date:</span>
-            <span>{format(parseISO(transaction.tx_date), 'PPP')}</span>
+            <span>{transaction.tx_date ? format(parseISO(transaction.tx_date), 'PPP') : 'N/A'}</span>
 
             <span className="font-semibold">Account:</span>
             <span>{transaction.accountName}</span>
 
             <span className="font-semibold">Balance:</span>
-            <span>{currencyFormatter.format(transaction.balance_after)}</span>
+            <span>{currencyFormatter.format(transaction.balance_after ?? 0)}</span>
 
             {transaction.user_notes && (
               <>
