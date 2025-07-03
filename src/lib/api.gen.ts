@@ -519,6 +519,8 @@ export class Api<
         currency?: string;
         /** Comma-separated list of categories to filter by */
         categories?: string;
+        /** Comma-separated list of account IDs to filter by */
+        account_ids?: string;
         /** Search term for the merchant field (case-insensitive) */
         merchant?: string;
         /** Search term for the description field (case-insensitive) */
